@@ -1,0 +1,65 @@
+---
+name: py-code-quality
+description: "Assess Python code quality and report findings without modifying code when reviewing Python code or assessing a Python project."
+---
+
+<!-- Generated from SKILL.md.tmpl by ./scripts/generate. Edit the template. -->
+
+Follow the workflow below using available Codex tools and the target project's conventions.
+Resolve supporting links relative to this skill directory. Explicit invocation requests the
+skill's described default workflow; honor narrower user instructions such as report-only,
+no edits, no commits, or no persistence. Permission restrictions still apply. Preserve user
+work and never include unrelated changes in a commit. Posting messages or external comments
+requires explicit authorization. Report unavailable tooling as missing coverage, not success.
+
+# Python Code Quality
+
+This skill assesses Python code quality and reports findings and suggested improvements.
+This skill is read-only: do not edit files, apply fixes, stage changes, or create commits.
+Use only checks that do not modify project files; do not run automatic fixes or formatters in write mode.
+
+## Scope
+
+When the user specifies files or directories, report findings only about that scope.
+Read related callers, dependencies, tests, and configuration outside the scope as needed to verify findings.
+
+When no scope is specified, review repository-owned Python code and relevant configuration.
+Exclude virtual environments, caches, generated files, vendored dependencies, and build outputs unless explicitly requested.
+
+If coverage is incomplete, state what was reviewed and what remains unreviewed.
+
+## Guidelines
+
+Here are some basic guiding principles for assessing Python code and providing feedback:
+
+- Code should strictly adhere to the existing codebase's rules. For example, code must respect the pre-commit and the specified linters and formatters. If some checks don't pass, inspect the logs and highlight the issue.
+- Code should be of high taste:
+  - Code should use inline comments when appropriate to explain complex logic. Inline comments must not be over-used to explain simple things.
+  - Code should prefer composition over inheritance when possible. This makes the code clean and modular.
+  - Code should be typed. Report missing or incorrect type hints, and use existing type hints to guide the analysis.
+  - Prefer named constants for repeated domain values or unexplained thresholds when naming them clarifies meaning or prevents inconsistent updates. Ordinary literals with clear local meaning (e.g., `count + 1`, `items[:2]`, or an empty string) are fine. Do not flag a literal solely because it is unnamed or appears more than once. Recommend configuration only when the value needs to vary by user or environment; follow the project's conventions for constant naming and placement.
+  - Code should be simple. When a piece of code is unnecessarily complicated, you identify areas of improvement to simplify the logic and design. Of course, the code should not be overly simple such that it fails to do the job.
+  - Code should be readable. Don't have ultra long functions or ultra complex classes.
+  - Code should handle errors properly.
+
+When triggered, analyze the code based on these guidelines and report your assessment.
+
+## Assessment and reporting
+
+For each finding, include:
+
+- **Location:** File and line, or the relevant function/class.
+- **Issue:** What is wrong, supported by code or check output.
+- **Impact:** How it affects correctness, readability, maintainability, or testing.
+- **Suggestion:** A concrete improvement, without applying changes.
+
+Distinguish correctness defects, maintainability concerns, and optional style suggestions.
+Prioritize by practical impact.
+
+Ground style findings in project conventions or a concrete readability problem.
+Function length, inheritance, or missing annotations alone do not establish a defect.
+
+State uncertainty when supporting context is missing. Do not invent findings to fill a quota;
+reporting no significant issues is valid.
+
+Summarize checks run and any coverage limitations.

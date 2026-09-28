@@ -1,0 +1,70 @@
+#!/bin/bash
+# Render local skill templates with Bash and awk.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+mode=write
+case "${1:-}" in
+  '') ;;
+  --check) mode=check ;;
+  --dry-run) mode=preview ;;
+  *) printf 'Usage: ./scripts/generate [--check | --dry-run]\n' >&2; exit 1 ;;
+esac
+[ "$#" -le 1 ] || { printf 'Too many arguments\n' >&2; exit 1; }
+work=$(mktemp -d "${TMPDIR:-/tmp}/mts-generate.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+names=()
+for template in "$ROOT"/*/SKILL.md.tmpl; do
+  [ -f "$template" ] || continue
+  directory="${template%/SKILL.md.tmpl}"
+  name="${directory##*/}"
+  case "$name" in *[!a-z0-9-]*|-*) printf 'Invalid skill folder: %s\n' "$name" >&2; exit 1 ;; esac
+  names+=("$name")
+  # Replacement is text only: template content is never evaluated as shell code.
+  awk -v root="$ROOT" -v skill="$name" '
+    function error(message) { print FILENAME ": " message > "/dev/stderr"; exit 1 }
+    function shared(key,    path,line,status) {
+      path=root "/templates/" key ".md"
+      status=(getline line < path)
+      if (status < 0) error("Missing shared template: " path)
+      while (status > 0) {
+        if (line ~ /\{\{[A-Z_]+/) error("Nested directive in shared template: " path)
+        print line
+        status=(getline line < path)
+      }
+      if (status < 0) error("Cannot read shared template: " path)
+      close(path)
+    }
+    /^\{\{SECTION:[a-z0-9-]+\}\}$/ {
+      key=$0; sub(/^\{\{SECTION:/,"",key); sub(/\}\}$/,"",key)
+      path=root "/" skill "/sections/" key ".md"
+      status=(getline line < path); close(path)
+      if (status <= 0) error("Missing or empty section: " path)
+      print "Read [" key "](sections/" key ".md) when applying this part of the workflow."
+      next
+    }
+    /^\{\{(PREAMBLE|WORKFLOW_PREAMBLE|PROJECT_STATE|WORKFLOW_LEARNINGS|LEARNINGS_LOG|BASE_BRANCH_DETECT|LEARNINGS_SEARCH|CONFIDENCE_CALIBRATION)\}\}$/ {
+      key=$0; sub(/^\{\{/,"",key); sub(/\}\}$/,"",key)
+      shared(key); next
+    }
+    {
+      gsub(/\{\{SKILL_NAME\}\}/,skill)
+      if ($0 ~ /\{\{[A-Z_]+/) error("Unknown or misplaced template directive: " $0)
+      print
+    }
+  ' "$template" > "$work/$name.md"
+done
+[ "${#names[@]}" -gt 0 ] || { printf 'No skill templates found\n' >&2; exit 1; }
+# All templates must validate before any generated file is replaced.
+stale=false
+for name in "${names[@]}"; do
+  dst="$ROOT/$name/SKILL.md"
+  if ! cmp -s "$work/$name.md" "$dst"; then
+    stale=true
+    case "$mode" in
+      write) cp "$work/$name.md" "$dst"; printf 'Generated %s/SKILL.md\n' "$name" ;;
+      check) printf 'Stale or missing: %s/SKILL.md (run ./scripts/generate)\n' "$name" >&2 ;;
+      preview) printf 'Would generate %s/SKILL.md\n' "$name" ;;
+    esac
+  fi
+done
+if [ "$mode" = check ] && $stale; then exit 1; fi

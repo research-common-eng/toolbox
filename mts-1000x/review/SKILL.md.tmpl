@@ -1,0 +1,108 @@
+---
+name: {{SKILL_NAME}}
+description: "Review a diff for structural correctness, data safety, concurrency, trust boundaries, plan completion, and missing regression coverage."
+---
+
+{{WORKFLOW_PREAMBLE}}
+
+{{PROJECT_STATE}}
+
+# Pre-Landing Review
+
+Analyze what can fail in the requested change, including structural problems tests may miss. Run a critical pass, relevant specialist passes, and an adversarial recheck. Keep the conclusion grounded in concrete triggers rather than a quota of findings.
+
+{{BASE_BRANCH_DETECT}}
+
+## Step 1: Understand intent and scope drift
+
+Read the user request, PR description if supplied, relevant plan, and commit messages. State the intended behavior and compare it with the changed files. Distinguish unrelated additions, missing work, and deliberate changes of approach.
+
+{{SECTION:plan-completion}}
+
+A plan mismatch is informational until it demonstrates a violated requirement. Do not infer that a feature is complete from a touched file, or that external deployment happened because deployment code exists.
+
+## Step 2: Read the checklist and complete diff
+
+Read [checklist.md](checklist.md) before judging the change. If this bundled reference is missing, report the packaging problem and the resulting coverage limit.
+
+Read changed functions in context, their callers, tests, schemas, and configuration. For a new enum/status/tier, search sibling values across the repository and read every relevant consumer, including allowlists, serializers, switches, defaults, and UI options. A new value can work in the dropdown while being rejected or silently discarded by persistence.
+
+{{WORKFLOW_LEARNINGS}}
+
+## Step 3: Critical pass
+
+Apply the checklist's SQL/data safety, concurrency, model-output trust, command injection, and enum-completeness categories first.
+
+For each candidate, trace the full path:
+1. What input or concurrent event triggers it?
+2. Which validation or authorization applies before this code?
+3. What state changes, and can a failure leave partial effects?
+4. What do the caller and user observe?
+5. Is the behavior introduced by this diff or pre-existing?
+
+Then apply the remaining categories: async blocking, schema field names, prompt/parser contracts, time windows, boundary coercion, frontend behavior, distribution, and CI. Assess severity from impact, not category membership.
+
+When recommending a framework-specific correction, inspect the pinned version and existing project patterns. Consult official documentation if behavior is uncertain. Do not recommend an API merely because its name looks plausible.
+
+### Optional project diagnostics
+
+If the target project already defines a `slop:diff` or equivalent diff-quality check, run it against the selected base with its installed tools and include results as advisory. Do not install a scanner or treat its absence as a review failure. This is separate from the critical correctness checklist.
+
+## Step 4: Focused specialist passes
+
+Read [specialist dispatch](sections/review-army.md) and run its selection, independent dispatch, merge, and scoring workflow. The table below identifies the local checklists; no separately installed skills or agent CLI is required.
+
+| Pass | When to apply | Reference |
+| --- | --- | --- |
+| Testing | Changed behavior and regression coverage | [testing](specialists/testing.md) |
+| Maintainability | Error handling, state, duplication, dead paths | [maintainability](specialists/maintainability.md) |
+| Security | Auth, untrusted inputs, sensitive data | [security](specialists/security.md) |
+| Performance | Hot paths, queries, large collections, frontend bundles | [performance](specialists/performance.md) |
+| Data migration | Schema changes, backfills, data transformations | [data migration](specialists/data-migration.md) |
+| API contract | Public interfaces, payloads, compatibility | [API contract](specialists/api-contract.md) |
+| Design | Frontend structure, accessibility states, design-system consistency | [design](design-checklist.md) |
+| Simplification | New abstractions or unused flexibility | [simplification](specialists/simplification.md) |
+| Red team | Failure-prone boundaries or a requested deep review | [red team](specialists/red-team.md) |
+
+For specialist findings, retain severity, confidence, path, line, category, summary, concrete fix, and evidence. A proposed regression test should establish the failing precondition, perform the action, and assert the intended result.
+
+Dispatch selected specialists independently using available Codex subagent tools when the host permits delegation. If unavailable, apply their checklists locally and report the lost independence. Do not require an extra user request for independent review; it is part of this workflow. Never launch nested agent CLIs.
+
+## Step 5: Adversarial recheck and deduplication
+
+After the specialist merge, run [the adversarial pass](sections/adversarial.md).
+
+Revisit the strongest assumptions with an attacker/chaos-engineering lens: retries, duplicate delivery, cancellation, partial failure, stale cache, resource cleanup, permission changes, empty inputs, and boundary values. Find a counterexample rather than repeating the happy path.
+
+Challenge each candidate with the strongest benign explanation. Read the actual guard or caller that would disprove it. Merge findings with the same root cause across passes; do not report the same missing check as separate security, API, and testing bugs. Preserve distinct downstream impacts in one finding.
+
+{{CONFIDENCE_CALIBRATION}}
+
+## Step 6: Existing comments, TODOs, and docs
+
+Read [Greptile triage](greptile-triage.md). Fetch line-level and top-level bot comments if the target project has an accessible PR. Apply its suppressions, classifications, escalation detection, and reply templates. This is optional: absence of the integration does not block review. Posting replies requires explicit authorization; otherwise prepare the reply text locally.
+
+Cross-reference existing TODOs and documentation with changed behavior. A code change alone does not prove docs are stale: name the statement that became wrong. Route requested documentation fixes through the same repository conventions.
+
+## Step 7: Fix-first disposition
+
+Default explicit invocation is fix-first, as in the source workflow. If the user instead requests a read-only review, report the same findings and proposed actions without applying them.
+
+Read the Fix-First Heuristic in [checklist.md](checklist.md). Classify every finding:
+- AUTO-FIX: mechanical, unambiguous correction within scope.
+- ASK: security-sensitive changes, races, product/design decisions, large fixes, enum behavior, functionality removal, or otherwise ambiguous user-visible behavior.
+- Advisory simplification and findings with `test_stub` are ASK regardless of other classification.
+
+Apply authorized AUTO-FIX items and report `[AUTO-FIXED] file:line — problem → correction`. Present remaining decisions together, each with severity, concrete trigger, proposed fix, and Fix/Skip choices. Show proposed regression code and path for test-stub items. Respect prior authorization; do not ask again for a decision already made. Apply approved fixes and regression tests, then verify the final diff.
+
+Before output, prove claims: cite the actual safety guard, name the test providing coverage, and give validation command outcomes. Do not call unverified work safe or tested.
+
+## Step 8: Persist the completed review
+
+Append to `$STATE_DIR/review-log.jsonl` after an actual review, unless persistence was declined. Store timestamp, skill, commit, diff boundary, status (`clean` or `issues_found`), unresolved counts, quality score, per-specialist dispatch/finding counts, and per-finding fingerprint/severity/action (`auto-fixed`, `fixed`, `skipped`). Do not record a skipped or failed review as clean.
+
+Use prior records for cross-review deduplication only when the same issue, code context, and disposition still apply; a matching path alone is insufficient. Retain specialist advisory counts for adaptive statistics even though advisories do not reduce quality score.
+
+Output findings/actions, specialist and adversarial results, quality score, plan/TODO/doc gaps, checks run, and missing coverage. This local record replaces upstream review logging; it does not invoke a shipping workflow.
+
+{{LEARNINGS_LOG}}

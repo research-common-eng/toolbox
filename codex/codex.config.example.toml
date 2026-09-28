@@ -1,0 +1,180 @@
+## Codex config — commented reference
+## Copy only what you need into ~/.codex/config.toml. Replace example paths/IDs.
+## Uncomment settings AND their [table] headers. Keep root settings above tables.
+## Values are examples, not a recommended preset. Nothing here is active.
+## Full reference: https://learn.chatgpt.com/docs/config-file/config-reference
+
+## 1. Model and responses
+# model = "gpt-6-astra"
+# model_reasoning_effort = "xhigh"       # Model-dependent; low through xhigh.
+# model_reasoning_summary = "detailed"  # auto | concise | detailed | none
+# model_verbosity = "medium"            # low | medium | high
+# personality = "pragmatic"             # none | friendly | pragmatic
+# service_tier = "default"              # fast, when supported
+# review_model = "gpt-6-astra"           # Optional separate review model.
+# plan_mode_reasoning_effort = "high"
+
+## 2. Access, approvals, and search
+# default_permissions = "project-private" # Defined in section 8; copy it too.
+# approval_policy = "on-request"        # untrusted | on-request | never
+# approvals_reviewer = "user"           # user | auto_review
+# web_search = "cached"                 # disabled | cached | indexed | live
+## Custom file/network rules use [permissions.<name>]. Do not combine permission
+## profiles with legacy sandbox_mode / sandbox_workspace_write settings.
+## https://learn.chatgpt.com/docs/permissions
+
+## 3. Instructions, context, and local defaults
+## Put persistent behavior in ~/.codex/AGENTS.md or the project's AGENTS.md.
+# developer_instructions = "Keep changes focused on the requested outcome."
+# project_doc_max_bytes = 32768
+# tool_output_token_limit = 10000
+## Leave context-window and compaction overrides unset to use model defaults.
+# cli_auth_credentials_store = "auto"    # auto | keyring | file
+# allow_login_shell = true
+# file_opener = "vscode"
+# notify = ["python3", "/Users/YOU/.codex/notify.py"]  # Create the script first.
+
+## 4. Subagents
+# [agents]
+# enabled = true
+# max_concurrent_threads_per_session = 4 # Excludes the primary agent.
+# default_subagent_model = "gpt-6-astra"
+# default_subagent_reasoning_effort = "high"
+## Custom roles: ~/.codex/agents/*.toml or <repo>/.codex/agents/*.toml.
+## https://learn.chatgpt.com/docs/agent-configuration/subagents
+
+## 5. Features and memory
+# [features]
+# memories = false
+# hooks = false
+# goals = true
+# network_proxy = true                 # Enforces section 8's network allowlist.
+# [memories]
+# generate_memories = true              # Requires features.memories.
+# use_memories = true
+# max_rollout_age_days = 30
+# [history]
+# persistence = "save-all"              # save-all | none
+# max_bytes = 10485760                  # 10 MiB
+
+## 6. External tools (MCP)
+## Replace the endpoint/tool names; enable after setting up authentication.
+## https://learn.chatgpt.com/docs/extend/mcp
+# [mcp_servers.example]
+# enabled = false
+# url = "https://mcp.example.com/mcp"
+# bearer_token_env_var = "EXAMPLE_MCP_TOKEN" # Variable NAME, never the secret.
+# startup_timeout_sec = 30
+# tool_timeout_sec = 60
+# default_tools_approval_mode = "prompt" # Ask even for read-only external calls.
+# enabled_tools = ["search"]
+## For a local server, replace url/token with command, args, and optionally env.
+## OAuth servers can use auth = "oauth" instead of a bearer-token variable.
+
+## 7. Plugins, apps, and skills
+## Use actual installed IDs. These entries do not install or authenticate tools.
+# [plugins."example@personal"]
+# enabled = false
+# [plugins."example@personal".mcp_servers.example]
+# default_tools_approval_mode = "prompt"
+# [apps._default]
+# default_tools_approval_mode = "prompt"
+# approvals_reviewer = "user"
+## Apply prompt to each plugin server; existing per-tool overrides can supersede
+## these defaults. Reads can transmit queries too, so they also require approval.
+# [skills]
+# max_context_tokens = 4000
+# [[skills.config]]
+# path = "/Users/YOU/.agents/skills/example/SKILL.md"
+# enabled = false
+## Author workflows in SKILL.md; project skills go in .agents/skills/.
+## https://learn.chatgpt.com/docs/build-skills
+
+## 8. File/network boundaries, project trust, and shell environment
+## Allow workspace edits plus runtime/temp access; preserve built-in protections
+## for .git/.codex. Other filesystem access needs a more specific grant.
+# [permissions.project-private]
+# extends = ":workspace"
+# [permissions.project-private.filesystem]
+# ":root" = "deny"
+# ":minimal" = "read"
+# [permissions.project-private.filesystem.":workspace_roots"]
+# "**/.env" = "deny"
+# "**/.env.*" = "deny"
+# [permissions.project-private.network]
+# enabled = false                      # No sandboxed-command network by default.
+# [permissions.project-private.network.domains]
+# "api.github.com" = "allow"            # Example; used only if network is enabled.
+## Keep features.network_proxy enabled when enabling network access; otherwise
+## domain filtering is not enforced. Add only the destinations your task needs.
+## This boundary covers sandboxed commands, not hosted search/apps/MCP traffic.
+# [projects."/Users/YOU/projects/example"]
+# trust_level = "trusted"               # Enables that project's .codex layers.
+# [shell_environment_policy]
+# inherit = "core"                      # all | core | none
+# ignore_default_excludes = false
+# [shell_environment_policy.set]
+# EXAMPLE_WORK_MODE = "development"
+## Use shell_environment_policy.filters for variable allow/deny patterns.
+
+## 9. Hooks
+## Requires features.hooks plus trust review; create the handler before use.
+## https://learn.chatgpt.com/docs/hooks
+# [[hooks.Stop]]
+# [[hooks.Stop.hooks]]
+# type = "command"
+# command = "python3 /Users/YOU/.codex/hooks/on_stop.py"
+# timeout = 10
+## Other events include SessionStart, PreToolUse, PostToolUse, and PreCompact.
+## You can instead keep hooks in ~/.codex/hooks.json.
+
+## 10. Browser, desktop, and terminal
+## Manage per-site and per-app access in the desktop Settings UI.
+# [browser_use]
+# allow_history_access = false
+# [tui]
+# notifications = true
+# animations = true
+# vim_mode_default = false
+## Desktop keys below were observed in your app; prefer the UI for routine edits.
+# [desktop]
+# sansFontSize = 14
+# codeFontSize = 13
+# followUpQueueMode = "steer"
+# show-context-window-usage = true
+# preventSleepWhileRunning = true
+## Themes, shortcuts, pets, and custom file handlers are also configurable.
+## https://learn.chatgpt.com/docs/reference/settings
+
+## 11. Privacy — disable optional sharing and remote diagnostics
+# [analytics]
+# enabled = false
+# [feedback]
+# enabled = false
+# [otel]
+# exporter = "none"
+# trace_exporter = "none"
+# metrics_exporter = "none"
+# log_user_prompt = false
+## Model/tool requests still send required data to their providers.
+## These settings control optional reporting, not account-level data-use policy.
+
+## 12. Optional custom model provider
+## To select it, add model_provider = "example_gateway" at the TOP of the file.
+# [model_providers.example_gateway]
+# name = "Example gateway"
+# base_url = "https://models.example.com/v1"
+# env_key = "EXAMPLE_MODEL_API_KEY"
+# wire_api = "responses"
+## Local models: root oss_provider = "ollama" or "lmstudio", used with --oss.
+## https://learn.chatgpt.com/docs/config-file/config-advanced
+
+## Settings that live elsewhere
+## - Named preset: ~/.codex/focused.config.toml; select with --profile focused.
+## - Command allow/prompt/deny rules: ~/.codex/rules/*.rules.
+## - Worktree setup and Run/Build/Test actions: app environment settings.
+## - Schedules, cloud runtimes, and secrets: their app/web settings.
+## - Admin restrictions: requirements.toml / managed policy; users cannot relax it.
+## - CODEX_HOME changes the config/state root; set it in the shell environment.
+## Priority: CLI > trusted project > selected profile > global > system > defaults.
+## https://learn.chatgpt.com/docs/config-file/config-basic

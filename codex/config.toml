@@ -1,0 +1,38 @@
+# 1. Model and responses
+model = "gpt-6-astra"
+model_reasoning_effort = "high"
+model_reasoning_summary = "detailed"
+model_verbosity = "low"
+personality = "pragmatic"
+service_tier = "default"  # or `fast`
+review_model = "gpt-6-astra"
+plan_mode_reasoning_effort = "high"
+
+# 2. Access, approvals, and search
+# default_permissions = "custom-permission" # Defined in section 8; copy it too.
+# approval_policy = "on-request"        # untrusted | on-request | never
+approvals_reviewer = "auto_review"           # user | auto_review
+web_search = "cached"                 # disabled | cached | indexed | live
+# Custom file/network rules use [permissions.<name>]. Do not combine permission
+# profiles with legacy sandbox_mode / sandbox_workspace_write settings.
+# https://learn.chatgpt.com/docs/permissions
+
+# 4. Subagents
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 32 # Excludes the primary agent.
+default_subagent_model = "gpt-6-astra"
+default_subagent_reasoning_effort = "low"
+# Custom roles: ~/.codex/agents/*.toml or <repo>/.codex/agents/*.toml.
+# https://learn.chatgpt.com/docs/agent-configuration/subagents
+
+# 11. Privacy — disable optional sharing and remote diagnostics
+[analytics]
+enabled = false
+[feedback]
+enabled = false
+[otel]
+exporter = "none"
+trace_exporter = "none"
+metrics_exporter = "none"
+log_user_prompt = false

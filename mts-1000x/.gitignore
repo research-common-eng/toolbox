@@ -1,0 +1,11 @@
+# Local skill installation and workflow reports
+.agents/skills/
+.mts-1000x/
+
+# Local environment configuration
+.env
+.envrc
+
+# Python bytecode (cache directories are ignored by the root .gitignore)
+*.py[codz]
+

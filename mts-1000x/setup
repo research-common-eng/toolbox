@@ -1,0 +1,107 @@
+#!/bin/bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd -P)"
+
+fail() { printf 'setup: %s\n' "$*" >&2; exit 1; }
+usage() {
+  cat <<'EOF'
+Usage: ./setup [--project | --target DIRECTORY] [--dry-run] [--uninstall]
+
+Install standalone Codex skills on macOS or Linux using Bash and standard utilities.
+Default: ${CODEX_HOME:-$HOME/.codex}/skills
+  --project     Install in this checkout's .agents/skills
+  --target DIR  Install in a custom skills directory
+  --dry-run     Preview without changing files
+  --uninstall   Remove only this checkout's skill links
+EOF
+}
+
+target="${CODEX_HOME:-$HOME/.codex}/skills"
+scope=''
+dry_run=false
+uninstall=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --project)
+      [ -z "$scope" ] || fail 'Choose only one installation destination'
+      scope=project; target="$ROOT/.agents/skills" ;;
+    --target)
+      [ -z "$scope" ] || fail 'Choose only one installation destination'
+      [ "$#" -ge 2 ] && [ -n "$2" ] || fail '--target needs a directory'
+      scope=target; target="$2"; shift ;;
+    --dry-run) dry_run=true ;;
+    --uninstall) uninstall=true ;;
+    --help|-h) usage; exit 0 ;;
+    *) fail "Unknown option: $1 (see --help)" ;;
+  esac
+  shift
+done
+case "$(uname -s)" in
+  Darwin|Linux) ;;
+  *) fail 'Only macOS and Linux are supported' ;;
+esac
+case "$target" in /*) ;; *) target="$PWD/$target" ;; esac
+
+names=()
+for skill in "$ROOT"/*/SKILL.md.tmpl; do
+  [ -f "$skill" ] || continue
+  directory="${skill%/SKILL.md.tmpl}"
+  name="${directory##*/}"
+  case "$name" in *[!a-z0-9-]*|-*) fail "Invalid skill folder: $name" ;; esac
+  names+=("$name")
+done
+[ "${#names[@]}" -gt 0 ] || fail 'No skill templates found'
+
+owned() {
+  [ -L "$1" ] && [ "$(readlink "$1")" = "$2" ]
+}
+
+# Check every destination before writing any links.
+if ! $uninstall; then
+  for name in "${names[@]}"; do
+    dst="$target/$name"
+    if [ -e "$dst" ] || [ -L "$dst" ]; then
+      owned "$dst" "$ROOT/$name" || fail "Refusing to replace existing entry: $dst"
+    fi
+  done
+fi
+
+if ! $uninstall; then
+  if $dry_run; then
+    "$ROOT/scripts/generate" --dry-run
+  else
+    "$ROOT/scripts/generate"
+  fi
+fi
+if ! $dry_run && ! $uninstall; then mkdir -p "$target"; fi
+# Migrate legacy prefixed links only when they belong to this checkout.
+for dst in "$target"/mts-1000x-*; do
+  name="${dst##*/mts-1000x-}"
+  if owned "$dst" "$ROOT/$name"; then
+    printf 'Remove %s\n' "$dst"
+    if ! $dry_run; then rm "$dst"; fi
+  fi
+done
+# Retired skills may no longer have a source folder. Only remove exact links
+# created by this checkout, including broken links; leave other entries alone.
+for dst in "$target"/*; do
+  name="${dst##*/}"
+  if owned "$dst" "$ROOT/$name"; then
+    if $uninstall || [ ! -f "$ROOT/$name/SKILL.md.tmpl" ]; then
+      printf 'Remove %s\n' "$dst"
+      if ! $dry_run; then rm "$dst"; fi
+    fi
+  fi
+done
+for name in "${names[@]}"; do
+  dst="$target/$name"
+  if ! $uninstall; then
+    printf 'Link %s -> %s\n' "$dst" "$ROOT/$name"
+    if ! $dry_run && ! owned "$dst" "$ROOT/$name"; then
+      ln -s "$ROOT/$name" "$dst"
+    fi
+  fi
+done
+if ! $dry_run && ! $uninstall; then
+  printf 'Installed %s Codex skills. Try $review in Codex.\n' "${#names[@]}"
+fi
